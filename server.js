@@ -12,12 +12,33 @@ dotenv.config();
 connectDB();
 
 const app = express();
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://portfolio-client-psi-one.vercel.app',   // NO trailing slash
+];
 
 // ─── Middleware ───────────────────────────────────────
 app.use(cors({
-  origin: [process.env.CLIENT_URL,"http://localhost:5173"],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+    
+    // Strip trailing slash from origin before checking
+    const cleanOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.includes(cleanOrigin)) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 }));
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
