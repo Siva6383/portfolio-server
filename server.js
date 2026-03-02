@@ -1,5 +1,6 @@
-const express = require('express');
+require('dotenv').config();
 const dotenv = require('dotenv');
+const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
@@ -14,7 +15,7 @@ const app = express();
 
 // ─── Middleware ───────────────────────────────────────
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: [process.env.CLIENT_URL,"http://localhost:5173"],
   credentials: true
 }));
 app.use(express.json());
