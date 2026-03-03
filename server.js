@@ -1,5 +1,6 @@
-const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config();
+const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
@@ -7,12 +8,11 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 require('./config/passport');
 
-dotenv.config();
 connectDB();
 
 const app = express();
 
-// ─── Allowed Origins ──────────────────────────────────
+// ─── CORS ─────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -21,12 +21,14 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (Postman, mobile apps)
     if (!origin) return callback(null, true);
-    const cleanOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(cleanOrigin)) {
+    // Strip trailing slash
+    const clean = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(clean)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS: ' + origin));
     }
   },
   credentials: true,
@@ -34,16 +36,15 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 };
 
-// ─── Middleware ───────────────────────────────────────
 app.use(cors(corsOptions));
+// ✅ NO app.options() line at all — cors() middleware handles it automatically
 
-// ✅ This is the fix - use (.*) instead of *
-app.options('/(.*)', cors(corsOptions));
-
+// ─── Body & Cookie Parsers ────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// ─── Session ─────────────────────────────────────────
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -52,26 +53,25 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000,
-  }
+  },
 }));
 
+// ─── Passport ────────────────────────────────────────
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─── Routes ───────────────────────────────────────────
+// ─── Routes ──────────────────────────────────────────
 app.use('/api/auth', require('./routes/authRoutes'));
-
-// ─── Contact Route (Protected) ────────────────────────
 app.use('/api/contact', require('./routes/contactRoutes'));
 
-// Health check
+// ─── Health Check ────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running ✅', timestamp: new Date() });
+  res.json({ status: 'Server running ✅', timestamp: new Date() });
 });
 
-// Global error handler
+// ─── Global Error Handler ────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('❌ Error:', err.message);
   res.status(500).json({ success: false, message: err.message || 'Internal server error' });
 });
 

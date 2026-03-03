@@ -64,16 +64,3 @@ exports.sendContactMessage = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to send message. Try again.' });
   }
 };
-```
-
----
-
-# 📁 Add Profile Photo & Resume
-
-### For Profile Photo:
-```
-client/
-  public/
-    assets/
-      profile.jpg     ← put your photo here
-      Kishore_Resume.pdf  ← put your resume here
