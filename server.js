@@ -1,6 +1,5 @@
-require('dotenv').config();
-const dotenv = require('dotenv');
 const express = require('express');
+const dotenv = require('dotenv');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
@@ -12,33 +11,35 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// ─── Allowed Origins ──────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://portfolio-client-psi-one.vercel.app',   // NO trailing slash
+  'https://portfolio-client-psi-one.vercel.app',
 ];
 
-// ─── Middleware ───────────────────────────────────────
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
-    
-    // Strip trailing slash from origin before checking
     const cleanOrigin = origin.replace(/\/$/, '');
-    
     if (allowedOrigins.includes(cleanOrigin)) {
       callback(null, true);
     } else {
-      console.log('Blocked by CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-}));
-app.options('*', cors());
+};
+
+// ─── Middleware ───────────────────────────────────────
+app.use(cors(corsOptions));
+
+// ✅ This is the fix - use (.*) instead of *
+app.options('/(.*)', cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -49,7 +50,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
   }
 }));
 
@@ -59,6 +61,9 @@ app.use(passport.session());
 // ─── Routes ───────────────────────────────────────────
 app.use('/api/auth', require('./routes/authRoutes'));
 
+// ─── Contact Route (Protected) ────────────────────────
+app.use('/api/contact', require('./routes/contactRoutes'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running ✅', timestamp: new Date() });
@@ -67,7 +72,7 @@ app.get('/api/health', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Internal server error' });
+  res.status(500).json({ success: false, message: err.message || 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 5000;
